@@ -9,6 +9,7 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\SignupForm;
 
 class SiteController extends Controller
 {
@@ -61,7 +62,9 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        return Yii::$app->user->isGuest
+            ? $this->redirect(['site/login'])
+            : $this->redirect(['dashboard/index']);
     }
 
     /**
@@ -77,11 +80,34 @@ class SiteController extends Controller
 
         $model = new LoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
+            return $this->redirect(['/dashboard/index']);
         }
 
         $model->password = '';
         return $this->render('login', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * Creates a local demo account and signs the user in.
+     *
+     * @return Response|string
+     */
+    public function actionSignup()
+    {
+        if (!Yii::$app->user->isGuest) {
+            return $this->redirect(['/dashboard/index']);
+        }
+
+        $model = new SignupForm();
+        if ($model->load(Yii::$app->request->post()) && ($user = $model->signup())) {
+            Yii::$app->user->login($user, 3600 * 24 * 30);
+            Yii::$app->session->setFlash('success', 'Your workspace account is ready.');
+            return $this->redirect(['/dashboard/index']);
+        }
+
+        return $this->render('signup', [
             'model' => $model,
         ]);
     }
